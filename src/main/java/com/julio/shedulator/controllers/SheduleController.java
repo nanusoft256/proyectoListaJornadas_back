@@ -11,56 +11,87 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.julio.shedulator.model.Task;
 import com.julio.shedulator.model.Jornada;
 import com.julio.shedulator.model.RequestTask;
-import com.julio.shedulator.model.Task;
 
 @RestController
 public class SheduleController {
-
+	
 	@CrossOrigin(origins = "*", allowedHeaders = "*")
 	@PostMapping("/task")
 	public @ResponseBody Task createTaskShedule(@RequestBody List<RequestTask> request) {
-
+		
 		int horasJornada = 8;
-		double suma = 0;
-		int diasTermino = 0;
-		int duracion;
-		int id = 0;
-
-		List<Jornada> jornadas = new ArrayList<>();
-		List<String> tareas;
+		
 		List<RequestTask> tareasOrdenadas = request.stream()
                 .sorted(Comparator.comparingInt(RequestTask::getDuration).reversed())
-                .collect(Collectors.toList());
-
-		double sum = tareasOrdenadas.stream().mapToDouble(RequestTask::getDuration).sum();
-		diasTermino = (int) Math.ceil(sum / horasJornada);
-
-		int indiceTareas = 0;
-		int tamTareas = tareasOrdenadas.size();
-		for (int i=0; i<diasTermino; i++) {
-			id+=1;
-			Jornada jornada = new Jornada();
-			tareas = new ArrayList<>();
-			duracion = tareasOrdenadas.get(indiceTareas).getDuration();
-			while((suma + duracion)<=8 && indiceTareas < tamTareas) {
-				suma += duracion;
-				jornada.setId(id);
-				tareas.add(tareasOrdenadas.get(indiceTareas).getId());
-				jornada.setTareas(tareas);
-				indiceTareas ++;
-			}
-
-			jornadas.add(jornada);
-			suma=0;
-		}
-
-		Task task = new Task();
-		task.setHrsJornada(horasJornada);
-		task.setDiasTermino(diasTermino);
-		task.setJornadas(jornadas);
-
-		return task;
+                .collect(Collectors.toList());	
+	    
+	    return agruparTareasPorJornada(horasJornada, tareasOrdenadas);
+	    
+	}
+	
+	private static Task agruparTareasPorJornada(int horasJornada, List<RequestTask> requestTask) {
+	    
+	    ArrayList<ArrayList<Integer>> groups = new ArrayList<>();
+	    ArrayList<ArrayList<String>> listaIDs = new ArrayList<>();
+	    Task tareasPorJornada = new Task();
+	    List<Jornada> jornadas = new ArrayList<>();
+	    Jornada jornada = new Jornada();
+	    List<String> tareas = new ArrayList<>();;
+	    ArrayList<Integer> sums = new ArrayList<>();
+	    
+	    groups.add(new ArrayList<>());
+	    listaIDs.add(new ArrayList<>());
+	    int id = 1;
+	    int diasTermino = 0;
+	    jornada.setId(id);
+	    jornada.setTareas(tareas);
+	    jornadas.add(jornada);
+	    sums.add(0);
+	    
+	    while (!requestTask.isEmpty()) {
+	        int n = requestTask.get(0).getDuration(); 
+	        String l = requestTask.get(0).getId(); 
+	        if (n > horasJornada) {
+	            String mensaje = "Duracion de jornada es superior a la cantida de horas por dia";
+	            throw new IllegalArgumentException(mensaje);
+	        }
+	        boolean match = false;
+    	        for (int i = 0; i < sums.size(); i++) {
+ 	            if (sums.get(i) + n <= horasJornada) {
+	                sums.set(i, sums.get(i) + n);
+	                groups.get(i).add(n);
+	                listaIDs.get(i).add(l);
+	                jornadas.get(i).getTareas().add(l);
+	                match = true;
+	                break;
+	            }
+	        }
+ 	        if (!match) {
+	            ArrayList<Integer> e = new ArrayList<>();
+	            ArrayList<String> f = new ArrayList<>();
+	            tareas = new ArrayList<>();
+	            Jornada j = new Jornada();
+	            id +=1;
+	            j.setId(id);
+	            tareas.add(l);
+	    	    j.setTareas(tareas);
+	    	    jornadas.add(j);
+	            e.add(n);
+	            f.add(l);
+	            groups.add(e);
+	            listaIDs.add(f);
+	            sums.add(n);
+	        }
+ 	       requestTask.remove(0);
+	    }
+	    diasTermino = groups.size();
+	    tareasPorJornada.setHrsJornada(horasJornada);
+	    tareasPorJornada.setDiasTermino(diasTermino);
+	    tareasPorJornada.setJornadas(jornadas);
+	  
+ 	    return tareasPorJornada;
 	}
 }
