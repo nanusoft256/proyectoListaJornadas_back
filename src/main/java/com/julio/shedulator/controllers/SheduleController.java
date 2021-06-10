@@ -11,88 +11,56 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.julio.shedulator.model.Task;
+import com.julio.shedulator.model.Jornada;
 import com.julio.shedulator.model.RequestTask;
+import com.julio.shedulator.model.Task;
 
 @RestController
 public class SheduleController {
-	
+
 	@CrossOrigin(origins = "*", allowedHeaders = "*")
 	@PostMapping("/task")
 	public @ResponseBody Task createTaskShedule(@RequestBody List<RequestTask> request) {
-		
+
 		int horasJornada = 8;
 		double suma = 0;
 		int diasTermino = 0;
 		int duracion;
 		int id = 0;
-		
+
+		List<Jornada> jornadas = new ArrayList<>();
+		List<String> tareas;
 		List<RequestTask> tareasOrdenadas = request.stream()
                 .sorted(Comparator.comparingInt(RequestTask::getDuration).reversed())
                 .collect(Collectors.toList());
-		
-		ArrayList<ArrayList<String>> a = grouping(horasJornada, tareasOrdenadas);
-	    System.out.println(a.get(2).get(0));
-			
 
-	    Task task = new Task();
-	    task.setHrsJornada(horasJornada);
-	    task.setDiasTermino(diasTermino);
+		double sum = tareasOrdenadas.stream().mapToDouble(RequestTask::getDuration).sum();
+		diasTermino = (int) Math.ceil(sum / horasJornada);
+
+		int indiceTareas = 0;
+		int tamTareas = tareasOrdenadas.size();
+		for (int i=0; i<diasTermino; i++) {
+			id+=1;
+			Jornada jornada = new Jornada();
+			tareas = new ArrayList<>();
+			duracion = tareasOrdenadas.get(indiceTareas).getDuration();
+			while((suma + duracion)<=8 && indiceTareas < tamTareas) {
+				suma += duracion;
+				jornada.setId(id);
+				tareas.add(tareasOrdenadas.get(indiceTareas).getId());
+				jornada.setTareas(tareas);
+				indiceTareas ++;
+			}
+
+			jornadas.add(jornada);
+			suma=0;
+		}
+
+		Task task = new Task();
+		task.setHrsJornada(horasJornada);
+		task.setDiasTermino(diasTermino);
+		task.setJornadas(jornadas);
+
 		return task;
-	}
-	
-	private static ArrayList<ArrayList<String>> grouping(int limit, List<RequestTask> input) {
-	    // Sort the input array.
-	    //Collections.sort(input, Collections.reverseOrder());
-	    // Copy the int[] to an ArrayList<Integer>
-	    //ArrayList<Integer> input = new ArrayList<>(Arrays.asList(tareasOrdenadas));
-
-	    // Initialize the groups
-	    ArrayList<ArrayList<Integer>> groups = new ArrayList<>();
-	    ArrayList<ArrayList<String>> listaIDs = new ArrayList<>();
-	    groups.add(new ArrayList<>());
-	    listaIDs.add(new ArrayList<>());
-	    // Initialize the sums of the groups, to increase performance (I guess).
-	    ArrayList<Integer> sums = new ArrayList<>();
-	    sums.add(0);
-
-	    // Iterate through the input array until there is no number
-	    // left in it (that means we just added all the numbers
-	    // into our groups array).
-	    while (!input.isEmpty()) {
-	        int n = input.get(0).getDuration(); // Store the number to 'n', to shortcut.
-	        String l = input.get(0).getId(); // Store the number to 'n', to shortcut.
-	        if (n > limit) {
-	            String mensaje = "Duracion de jornada es superior a la cantida de horas por dia";
-	            throw new IllegalArgumentException(mensaje);
-	        }
-	        boolean match = false;
-	        // Search the next groups and check if our current
-	        // number ('n') fits.
-	        for (int i = 0; i < sums.size(); i++) {
-	            if (sums.get(i) + n <= limit) {
-	                // If it fits, then add the number to the group.
-	                sums.set(i, sums.get(i) + n);
-	                groups.get(i).add(n);
-	                listaIDs.get(i).add(l);
-	                match = true;
-	                break;
-	            }
-	        }
-	        // If 'n' doesn't fit in any group, create a new one.
- 	        if (!match) {
-	            ArrayList<Integer> e = new ArrayList<>();
-	            ArrayList<String> f = new ArrayList<>();
-	            e.add(n);
-	            f.add(l);
-	            groups.add(e);
-	            listaIDs.add(f);
-	            sums.add(n);
-	        }
-	        // Remove our number.
-	        input.remove(0);
-	    }
-	    System.out.println(groups.size());
- 	    return listaIDs;
 	}
 }
